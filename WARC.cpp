@@ -1,4 +1,4 @@
-#include <Arduino.h>
+ #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
 
@@ -11,18 +11,18 @@ const char* ap_pass = "12345678";
 WebServer server(80);
 
 #define BUZZER_PIN 14
-#define TASER_PIN 19
 
 // ================= PAGE =================
 const char page[] PROGMEM = R"====(
 
 <!DOCTYPE html>
-
 <html>
+
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
 <style>
+
 body{
  font-family:Arial;
  display:flex;
@@ -30,18 +30,24 @@ body{
  align-items:center;
  background:#111;
  color:#ddd;
+
+ user-select:none;
+ -webkit-user-select:none;
+ -ms-user-select:none;
 }
 
 h1,h2{ color:#4fd1c5; }
 
-.arrows { font-size:70px;color:#eee; }
-.circularArrows { font-size:80px;color:#bbb; }
+.arrows{ font-size:70px;color:#eee; }
+.circularArrows{ font-size:80px;color:#bbb; }
 
 td{
  background:#1c1c1c;
  border-radius:35%;
  box-shadow:4px 4px #000;
+ text-align:center;
 }
+
 td:active{
  transform:translate(4px,4px);
  box-shadow:none;
@@ -54,15 +60,18 @@ table{
  margin:auto;
  table-layout:fixed;
 }
+
 </style>
 
 <script>
 
+/* ===== SEND COMMAND ===== */
 function send(c)
 {
  fetch('/'+c);
 }
 
+/* ===== TOUCH + MOUSE BIND ===== */
 function bind(id,cmd)
 {
  let el=document.getElementById(id);
@@ -74,6 +83,68 @@ function bind(id,cmd)
  el.onmouseleave = ()=>send('s');
  el.ontouchend   = ()=>send('s');
 }
+
+/* ===== KEYBOARD CONTROL ===== */
+
+const keys = {};
+
+document.addEventListener("keydown",function(e)
+{
+ keys[e.key.toLowerCase()] = true;
+ handleKeys();
+});
+
+document.addEventListener("keyup",function(e)
+{
+ keys[e.key.toLowerCase()] = false;
+ handleKeys();
+});
+
+function handleKeys()
+{
+ /* DIAGONAL */
+ if((keys["w"]||keys["arrowup"]) && keys["a"])
+  return send("slf");
+
+ if((keys["w"]||keys["arrowup"]) && keys["d"])
+  return send("srf");
+
+ if((keys["s"]||keys["arrowdown"]) && keys["a"])
+  return send("slb");
+
+ if((keys["s"]||keys["arrowdown"]) && keys["d"])
+  return send("srb");
+
+ /* STRAIGHT */
+ if(keys["w"]||keys["arrowup"])
+  return send("f");
+
+ if(keys["s"]||keys["arrowdown"])
+  return send("b");
+
+ /* SLIDE */
+ if(keys["a"])
+  return send("sl");
+
+ if(keys["d"])
+  return send("sr");
+
+ /* ROTATE */
+ if(keys["q"]||keys["arrowleft"])
+  return send("l");
+
+ if(keys["e"]||keys["arrowright"])
+  return send("r");
+
+ /* BUZZER HOLD */
+ if(keys[" "])
+  return send("bz");
+
+ /* STOP */
+ send("s");
+}
+
+/* ===== INIT ===== */
 
 window.onload=function()
 {
@@ -91,9 +162,7 @@ window.onload=function()
  bind("tl","l");
  bind("tr","r");
 
- bind("tz","tz");
-
- bind("buzzer","bz");   // hold buzzer
+ bind("buzzer","bz");
 }
 
 </script>
@@ -127,7 +196,7 @@ window.onload=function()
 
 <tr>
 <td id="tl"><span class="circularArrows">&#8634;</span></td>
-<td id="tz"><span class="arrows">&#x26A1;</span></td>
+<td style="background:transparent; box-shadow:none; border:none;"></td>
 <td id="tr"><span class="circularArrows">&#8635;</span></td>
 </tr>
 
@@ -163,7 +232,6 @@ void cmdS ()
 {
 stop(0);
 digitalWrite(BUZZER_PIN,LOW);   // STOP BUZZER
-digitalWrite(TASER_PIN,LOW);
 server.send(200);
 }
 
@@ -174,12 +242,6 @@ digitalWrite(BUZZER_PIN,HIGH);
 server.send(200);
 }
 
-void cmdTZ ()
-{
-digitalWrite(TASER_PIN,HIGH);
-server.send(200);
-}
-
 // ================= SETUP =================
 
 void warcSetup ()
@@ -187,9 +249,7 @@ void warcSetup ()
 Serial.begin(115200);
 
 pinMode(BUZZER_PIN,OUTPUT);
-pinMode(TASER_PIN,OUTPUT);
 digitalWrite(BUZZER_PIN,LOW);
-digitalWrite(TASER_PIN,LOW);
 
 WiFi.mode(WIFI_AP);
 WiFi.softAP(ap_ssid, ap_pass);
@@ -211,7 +271,6 @@ server.on("/l",cmdTL);
 server.on("/r",cmdTR);
 
 server.on("/s",cmdS);
-server.on("/tz",cmdTZ);
 server.on("/bz",cmdBZ);
 
 server.begin();
